@@ -1,0 +1,86 @@
+//Simple CPU
+//code 
+module simple_cpu(
+    input clk,
+    input rst,
+    output reg [15:0] pc,
+    output [15:0] instr_out,
+    output [15:0] R0, R1, R2, R3,
+    output [15:0] alu_out
+);
+
+    reg [15:0] instr_mem [0:15];   // Program memory
+    reg [15:0] regs [0:3];         // Register file
+    reg [15:0] alu_in;             // ALU input
+    reg halted;                     // Halt flag
+
+    assign instr_out = instr_mem[pc];
+    assign R0 = regs[0];
+    assign R1 = regs[1];
+    assign R2 = regs[2];
+    assign R3 = regs[3];
+    assign alu_out = alu_in;
+
+    // Initialize program memory
+    initial begin
+        instr_mem[0] = 16'b0001_0000_0001_0000; // MOV R0, R1
+        instr_mem[1] = 16'b0010_0000_0010_0000; // ADD R0, R2
+        instr_mem[2] = 16'b0011_0001_0011_0000; // SUB R1, R3
+        instr_mem[3] = 16'b1111_0000_0000_0000; // HLT
+    end
+
+    // CPU execution
+    always @(posedge clk or posedge rst) begin
+        if(rst) begin
+            pc <= 0;
+            halted <= 0;
+            regs[0] <= 5;
+            regs[1] <= 3;
+            regs[2] <= 2;
+            regs[3] <= 1;
+            alu_in <= 0;
+        end else if (!halted) begin
+            case(pc)
+                0: begin regs[0] <= regs[1]; alu_in <= regs[1]; pc <= pc + 1; end
+                1: begin regs[0] <= regs[0] + regs[2]; alu_in <= regs[0] + regs[2]; pc <= pc + 1; end
+                2: begin regs[1] <= regs[1] - regs[3]; alu_in <= regs[1] - regs[3]; pc <= pc + 1; end
+                3: begin halted <= 1; pc <= pc; end // Stop incrementing at HLT
+            endcase
+        end
+    end
+endmodule
+
+//testbench
+module tb;
+    reg clk = 0;
+    reg rst = 1;
+
+    wire [15:0] pc, instr_out, R0, R1, R2, R3, alu_out;
+
+    simple_cpu cpu(
+        .clk(clk),
+        .rst(rst),
+        .pc(pc),
+        .instr_out(instr_out),
+        .R0(R0),
+        .R1(R1),
+        .R2(R2),
+        .R3(R3),
+        .alu_out(alu_out)
+    );
+
+    // Clock generator
+    always #5 clk = ~clk;
+
+    // Release reset
+    initial begin
+        #10 rst = 0;
+        #100 $finish;
+    end
+
+    // Print CPU state every clock
+    always @(posedge clk) begin
+        $display("PC=%0d | Instr=%b | R0=%0d R1=%0d R2=%0d R3=%0d | ALU=%0d",
+                 pc, instr_out, R0, R1, R2, R3, alu_out);
+    end
+endmodule
